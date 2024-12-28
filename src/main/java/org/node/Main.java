@@ -5,6 +5,7 @@ import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import org.node.model.*;
 import org.node.view.*;
@@ -21,8 +22,6 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
         initializeCanvas();
-        createSampleNodes();
-        setupInteractions();
         setupStage(primaryStage);
     }
 
@@ -33,43 +32,14 @@ public class Main extends Application {
         connectionViews = new ArrayList<>();
     }
 
-    private void createSampleNodes() {
-        // Create a function node
-        Node functionNode = createFunctionNode(100, 100);
-        Node variableNode = createVariableNode(400, 100);
-        Node printNode = createPrintNode(100, 300);
-
-        // Add nodes to canvas
-        addNodeToCanvas(functionNode);
-        addNodeToCanvas(variableNode);
-        addNodeToCanvas(printNode);
-    }
-
-    private Node createFunctionNode(double x, double y) {
-        Node node = new Node("Calculate Sum", Node.NodeType.FUNCTION, new Point2D(x, y));
-        node.addInputPin(new Pin("exec_in", Pin.PinType.FLOW, "Exec", true));
-        node.addInputPin(new Pin("num1", Pin.PinType.NUMBER, "Number 1", true));
-        node.addInputPin(new Pin("num2", Pin.PinType.NUMBER, "Number 2", true));
-        node.addOutputPin(new Pin("exec_out", Pin.PinType.FLOW, "Exec", false));
-        node.addOutputPin(new Pin("result", Pin.PinType.NUMBER, "Result", false));
-        return node;
-    }
-
-    private Node createVariableNode(double x, double y) {
-        Node node = new Node("Number Variable", Node.NodeType.VARIABLE, new Point2D(x, y));
-        node.addOutputPin(new Pin("value", Pin.PinType.NUMBER, "Value", false));
-        return node;
-    }
-
-    private Node createPrintNode(double x, double y) {
-        Node node = new Node("Print Result", Node.NodeType.FUNCTION, new Point2D(x, y));
-        node.addInputPin(new Pin("exec_in", Pin.PinType.FLOW, "Exec", true));
-        node.addInputPin(new Pin("value", Pin.PinType.NUMBER, "Value", true));
-        node.addOutputPin(new Pin("exec_out", Pin.PinType.FLOW, "Exec", false));
-        return node;
-    }
-
     private void addNodeToCanvas(Node node) {
+        // Set initial position in the center of the visible canvas
+        if (node.getPosition() == null) {
+            double x = canvas.getWidth() / 2;
+            double y = canvas.getHeight() / 2;
+            node.setPosition(new Point2D(x, y));
+        }
+
         NodeView nodeView = new NodeView(node);
         nodeViews.add(nodeView);
         canvas.getChildren().add(nodeView);
@@ -114,15 +84,25 @@ public class Main extends Application {
     }
 
     private void setupStage(Stage primaryStage) {
-        ScrollPane scrollPane = new ScrollPane(canvas);
-        scrollPane.setPannable(true);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
+        ScrollPane canvasScroll = new ScrollPane(canvas);
+        canvasScroll.setPannable(true);
+        canvasScroll.setFitToWidth(true);
+        canvasScroll.setFitToHeight(true);
 
-        Scene scene = new Scene(scrollPane, 1200, 800);
+        // Create node palette
+        NodePalette palette = new NodePalette(this::addNodeToCanvas);
+
+        // Create main layout
+        HBox root = new HBox();
+        root.getChildren().addAll(palette, canvasScroll);
+        HBox.setHgrow(canvasScroll, javafx.scene.layout.Priority.ALWAYS);
+
+        Scene scene = new Scene(root, 1200, 800);
         primaryStage.setTitle("Blueprint Node Editor");
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        setupInteractions();
     }
 
     // Helper class for drag functionality

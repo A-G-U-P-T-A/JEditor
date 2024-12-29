@@ -24,8 +24,8 @@ A powerful visual scripting editor that allows you to create and manipulate Java
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/NodeEditor.git
-cd NodeEditor
+git clone https://github.com/A-G-U-P-T-A/JEditor.git
+cd JEditor
 ```
 
 2. Build the project using Maven:
@@ -68,7 +68,7 @@ mvn javafx:run
 ## Project Structure
 
 ```
-NodeEditor/
+JEditor/
 ├── src/
 │   ├── main/
 │   │   ├── java/
@@ -104,9 +104,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-Your Name - [@yourusername](https://twitter.com/yourusername)
+Arnab Gupta - [@A-G-U-P-T-A](https://github.com/A-G-U-P-T-A)
 
-Project Link: [https://github.com/yourusername/NodeEditor](https://github.com/yourusername/NodeEditor)
+Project Link: [https://github.com/A-G-U-P-T-A/JEditor](https://github.com/A-G-U-P-T-A/JEditor)
 
 ---
 **Note**: This is an ongoing project. Features and documentation will be updated regularly.

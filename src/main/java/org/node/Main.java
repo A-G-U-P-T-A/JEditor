@@ -4,6 +4,9 @@ import javafx.application.Application;
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
@@ -12,6 +15,9 @@ import org.node.model.*;
 import org.node.view.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 
 public class Main extends Application {
     private Pane canvas;
@@ -36,6 +42,7 @@ public class Main extends Application {
 
         // Setup canvas navigation
         setupCanvasNavigation();
+        setupCanvasHandlers();
     }
 
     private void setupCanvasNavigation() {
@@ -66,6 +73,55 @@ public class Main extends Application {
                 lastMousePosition = null;
                 canvas.setCursor(javafx.scene.Cursor.DEFAULT);
             }
+        });
+    }
+
+    private void setupCanvasHandlers() {
+        canvas.setOnDragOver(event -> {
+            if (event.getGestureSource() != canvas && event.getDragboard().hasString()) {
+                event.acceptTransferModes(TransferMode.COPY_OR_MOVE);
+            }
+            event.consume();
+        });
+
+        canvas.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasString()) {
+                String[] parts = db.getString().split("\\.");
+                String className = parts[0];
+                String methodName = parts[1];
+                
+                try {
+                    Class<?> cls = Class.forName("java.util." + className);
+                    if (methodName.equals("Create")) {
+                        // Create constructor node
+                        Constructor<?> constructor = cls.getConstructors()[0];
+                        Node node = ClassScanner.createConstructorNode(constructor, new Point2D(event.getX(), event.getY()));
+                        NodeView nodeView = new NodeView(node);
+                        nodeViews.add(nodeView);
+                        canvas.getChildren().add(nodeView);
+                    } else {
+                        // Create method node
+                        Method method = Arrays.stream(cls.getMethods())
+                            .filter(m -> m.getName().equals(methodName))
+                            .findFirst()
+                            .orElse(null);
+                        
+                        if (method != null) {
+                            Node node = ClassScanner.createMethodNode(method, new Point2D(event.getX(), event.getY()));
+                            NodeView nodeView = new NodeView(node);
+                            nodeViews.add(nodeView);
+                            canvas.getChildren().add(nodeView);
+                        }
+                    }
+                    success = true;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
         });
     }
 

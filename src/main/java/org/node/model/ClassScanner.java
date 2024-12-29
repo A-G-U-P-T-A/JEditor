@@ -5,6 +5,7 @@ import java.util.*;
 import java.io.File;
 import java.net.URL;
 import java.util.stream.Collectors;
+import javafx.geometry.Point2D;
 
 public class ClassScanner {
     private static final Set<String> EXCLUDED_PACKAGES = Set.of(
@@ -71,76 +72,72 @@ public class ClassScanner {
         }
     }
 
-    public static Node createNodeFromClass(Class<?> cls) {
-        Node node = new Node(cls.getSimpleName(), Node.NodeType.FUNCTION, null);
+    public static Node createMethodNode(Method method, Point2D position) {
+        String methodName = method.getName();
+        Class<?> cls = method.getDeclaringClass();
+        Node node = new Node(methodName, Node.NodeType.FUNCTION, position);
         
-        // Constructor pins
-        Constructor<?>[] constructors = cls.getConstructors();
-        if (constructors.length > 0) {
-            // Use first public constructor
-            Constructor<?> constructor = constructors[0];
-            node.addInputPin(new Pin("new", Pin.PinType.FLOW, "Create", true));
-            for (Parameter param : constructor.getParameters()) {
-                node.addInputPin(new Pin(
-                    param.getName(),
-                    convertTypeToPinType(param.getType()),
-                    param.getName(),
-                    true
-                ));
-            }
-            node.addOutputPin(new Pin("instance", Pin.PinType.OBJECT, cls.getSimpleName(), false));
+        // Add execution input pin
+        node.addInputPin(new Pin("exec_in", Pin.PinType.FLOW, "Exec", true));
+        
+        // Add 'this' pin for instance methods
+        if (!Modifier.isStatic(method.getModifiers())) {
+            node.addInputPin(new Pin("this", Pin.PinType.OBJECT, cls.getSimpleName(), true));
         }
-
-        // Method pins
-        for (Method method : getRelevantMethods(cls)) {
-            if (!method.getName().startsWith("get") && !method.getName().startsWith("set")) {
-                node.addInputPin(new Pin(
-                    method.getName() + "_exec",
-                    Pin.PinType.FLOW,
-                    method.getName(),
-                    true
-                ));
-                
-                // Method parameters as input pins
-                for (Parameter param : method.getParameters()) {
-                    node.addInputPin(new Pin(
-                        method.getName() + "_" + param.getName(),
-                        convertTypeToPinType(param.getType()),
-                        param.getName(),
-                        true
-                    ));
-                }
-
-                // Return value as output pin
-                if (method.getReturnType() != void.class) {
-                    node.addOutputPin(new Pin(
-                        method.getName() + "_return",
-                        convertTypeToPinType(method.getReturnType()),
-                        "Return",
-                        false
-                    ));
-                }
-            }
+        
+        // Add parameter pins
+        Parameter[] parameters = method.getParameters();
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter param = parameters[i];
+            node.addInputPin(new Pin(
+                param.getName() != null ? param.getName() : "arg" + i,
+                convertTypeToPinType(param.getType()),
+                param.getType().getSimpleName(),
+                true
+            ));
         }
-
-        // Field pins
-        for (Field field : getRelevantFields(cls)) {
-            if (!Modifier.isFinal(field.getModifiers())) {
-                node.addInputPin(new Pin(
-                    "set_" + field.getName(),
-                    convertTypeToPinType(field.getType()),
-                    field.getName(),
-                    true
-                ));
-            }
+        
+        // Add execution output pin
+        node.addOutputPin(new Pin("exec_out", Pin.PinType.FLOW, "Exec", false));
+        
+        // Add return value pin if not void
+        if (method.getReturnType() != void.class) {
             node.addOutputPin(new Pin(
-                "get_" + field.getName(),
-                convertTypeToPinType(field.getType()),
-                field.getName(),
+                "return",
+                convertTypeToPinType(method.getReturnType()),
+                method.getReturnType().getSimpleName(),
                 false
             ));
         }
+        
+        return node;
+    }
 
+    public static Node createConstructorNode(Constructor<?> constructor, Point2D position) {
+        Class<?> cls = constructor.getDeclaringClass();
+        Node node = new Node("Create " + cls.getSimpleName(), Node.NodeType.FUNCTION, position);
+        
+        // Add execution input pin
+        node.addInputPin(new Pin("exec_in", Pin.PinType.FLOW, "Exec", true));
+        
+        // Add parameter pins
+        Parameter[] parameters = constructor.getParameters();
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter param = parameters[i];
+            node.addInputPin(new Pin(
+                param.getName() != null ? param.getName() : "arg" + i,
+                convertTypeToPinType(param.getType()),
+                param.getType().getSimpleName(),
+                true
+            ));
+        }
+        
+        // Add execution output pin
+        node.addOutputPin(new Pin("exec_out", Pin.PinType.FLOW, "Exec", false));
+        
+        // Add instance output pin
+        node.addOutputPin(new Pin("instance", Pin.PinType.OBJECT, cls.getSimpleName(), false));
+        
         return node;
     }
 }

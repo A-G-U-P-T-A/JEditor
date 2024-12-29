@@ -10,11 +10,18 @@ import java.lang.reflect.Method;
 
 public class NodePalette extends VBox {
     private TreeView<String> treeView;
-    private Consumer<Node> onNodeCreated;
+    private TriConsumer<String, String, Double, Double> onNodeCreated;
 
-    public NodePalette(Consumer<Node> onNodeCreated) {
-        this.onNodeCreated = onNodeCreated;
+    public interface TriConsumer<T, U, V, W> {
+        void accept(T t, U u, V v, W w);
+    }
+
+    public NodePalette() {
         setupUI();
+    }
+
+    public void setOnNodeCreated(TriConsumer<String, String, Double, Double> callback) {
+        this.onNodeCreated = callback;
     }
 
     private void setupUI() {

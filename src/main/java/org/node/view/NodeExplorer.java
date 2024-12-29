@@ -1,104 +1,80 @@
 package org.node.view;
 
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
-import javafx.scene.control.Label;
-import javafx.scene.layout.Priority;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
-import javafx.scene.shape.Circle;
-import org.node.model.Node;
+import javafx.scene.layout.Priority;
 import java.util.List;
 import java.util.function.Consumer;
+import org.node.model.Node;
 
 public class NodeExplorer extends VBox {
-    private final VBox nodeList;
-    private final TextField searchField;
-    private List<NodeView> nodeViews;
-    private final Consumer<NodeView> onNodeSelected;
+    private ListView<NodeView> nodeList;
+    private Consumer<NodeView> onNodeSelected;
 
     public NodeExplorer(Consumer<NodeView> onNodeSelected) {
         this.onNodeSelected = onNodeSelected;
+        setupUI();
+    }
+
+    private void setupUI() {
         setPrefWidth(250);
-        setStyle("-fx-background-color: #2A2A2A; -fx-padding: 10;");
+        setStyle("-fx-background-color: #2D2D2D;");
 
-        // Header
-        Label header = new Label("Node Explorer");
-        header.setStyle("-fx-text-fill: white; -fx-font-size: 14; -fx-font-weight: bold; -fx-padding: 0 0 10 0;");
+        // Create title
+        Label title = new Label("Node Explorer");
+        title.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10;");
 
-        // Search field
-        searchField = new TextField();
-        searchField.setPromptText("Search nodes...");
-        searchField.setStyle("-fx-background-color: #3D3D3D; -fx-text-fill: white;");
-        searchField.textProperty().addListener((obs, old, newValue) -> filterNodes(newValue));
+        // Create node list
+        nodeList = new ListView<>();
+        nodeList.setStyle("-fx-background-color: #2D2D2D;");
+        VBox.setVgrow(nodeList, Priority.ALWAYS);
 
-        // Node list
-        nodeList = new VBox(5);
-        ScrollPane scrollPane = new ScrollPane(nodeList);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background: #2A2A2A; -fx-background-color: #2A2A2A;");
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        // Setup cell factory for custom rendering
+        nodeList.setCellFactory(lv -> new ListCell<NodeView>() {
+            private Button deleteButton;
+            private HBox content;
 
-        getChildren().addAll(header, searchField, scrollPane);
+            {
+                deleteButton = new Button("X");
+                deleteButton.setStyle("-fx-background-color: #FF4444; -fx-text-fill: white;");
+                content = new HBox(5);
+                content.setStyle("-fx-padding: 5;");
+            }
+
+            @Override
+            protected void updateItem(NodeView nodeView, boolean empty) {
+                super.updateItem(nodeView, empty);
+                if (empty || nodeView == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    // Create label for node name
+                    Label nameLabel = new Label(nodeView.getNode().getTitle());
+                    nameLabel.setStyle("-fx-text-fill: white;");
+                    HBox.setHgrow(nameLabel, Priority.ALWAYS);
+
+                    // Setup delete button action
+                    deleteButton.setOnAction(e -> {
+                        nodeView.getParent().getChildrenUnmodifiable().remove(nodeView);
+                        updateNodeList(getListView().getItems().filtered(nv -> nv != nodeView));
+                    });
+
+                    // Add label and delete button to content
+                    content.getChildren().setAll(nameLabel, deleteButton);
+                    setGraphic(content);
+                    setStyle("-fx-background-color: transparent;");
+
+                    // Setup click handler
+                    setOnMouseClicked(e -> onNodeSelected.accept(nodeView));
+                }
+            }
+        });
+
+        getChildren().addAll(title, nodeList);
     }
 
-    public void updateNodeList(List<NodeView> nodeViews) {
-        this.nodeViews = nodeViews;
-        refreshNodeList();
-    }
-
-    private void filterNodes(String filter) {
-        nodeList.getChildren().clear();
-        String filterLower = filter.toLowerCase();
-        
-        nodeViews.stream()
-            .filter(nodeView -> nodeView.getNode().getTitle().toLowerCase().contains(filterLower))
-            .forEach(this::addNodeEntry);
-    }
-
-    private void refreshNodeList() {
-        nodeList.getChildren().clear();
-        nodeViews.forEach(this::addNodeEntry);
-    }
-
-    private void addNodeEntry(NodeView nodeView) {
-        HBox entry = new HBox(10);
-        entry.setStyle("-fx-background-color: #3D3D3D; -fx-padding: 5 10; -fx-background-radius: 3;");
-
-        // Type indicator circle
-        Circle typeIndicator = new Circle(5);
-        typeIndicator.setFill(getColorForNodeType(nodeView.getNode().getType()));
-
-        // Node title
-        Label titleLabel = new Label(nodeView.getNode().getTitle());
-        titleLabel.setStyle("-fx-text-fill: white;");
-        HBox.setHgrow(titleLabel, Priority.ALWAYS);
-
-        entry.getChildren().addAll(typeIndicator, titleLabel);
-
-        // Hover effect
-        entry.setOnMouseEntered(e -> 
-            entry.setStyle("-fx-background-color: #4D4D4D; -fx-padding: 5 10; -fx-background-radius: 3;"));
-        
-        entry.setOnMouseExited(e -> 
-            entry.setStyle("-fx-background-color: #3D3D3D; -fx-padding: 5 10; -fx-background-radius: 3;"));
-
-        // Click handler
-        entry.setOnMouseClicked(e -> onNodeSelected.accept(nodeView));
-
-        nodeList.getChildren().add(entry);
-    }
-
-    private javafx.scene.paint.Color getColorForNodeType(Node.NodeType type) {
-        switch (type) {
-            case FUNCTION: return javafx.scene.paint.Color.DODGERBLUE;
-            case VARIABLE: return javafx.scene.paint.Color.LIGHTGREEN;
-            case EVENT: return javafx.scene.paint.Color.RED;
-            case CUSTOM_EVENT: return javafx.scene.paint.Color.ORANGE;
-            case BRANCH: return javafx.scene.paint.Color.PURPLE;
-            case LOOP: return javafx.scene.paint.Color.YELLOW;
-            default: return javafx.scene.paint.Color.GRAY;
-        }
+    public void updateNodeList(List<NodeView> nodes) {
+        nodeList.getItems().setAll(nodes);
     }
 }

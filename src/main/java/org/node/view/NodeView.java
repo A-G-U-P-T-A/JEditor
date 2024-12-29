@@ -24,6 +24,9 @@ public class NodeView extends Region {
     private boolean pinsExpanded = false;
     private VBox inputPinsBox;
     private VBox outputPinsBox;
+    private boolean selected = false;
+    private static final String STYLE_NORMAL = "-fx-background-color: #2D2D2D; -fx-background-radius: 5; -fx-border-color: #3D3D3D; -fx-border-radius: 5; -fx-border-width: 1;";
+    private static final String STYLE_SELECTED = "-fx-background-color: #4D4D4D; -fx-background-radius: 5; -fx-border-color: #00A5E5; -fx-border-width: 2; -fx-border-radius: 5;";
 
     public NodeView(Node node) {
         this.node = node;
@@ -34,11 +37,7 @@ public class NodeView extends Region {
     private void setupNodeView() {
         content = new VBox(5);
         content.setPadding(new Insets(5));
-        content.setStyle("-fx-background-color: #2D2D2D; " +
-                        "-fx-background-radius: 5; " +
-                        "-fx-border-color: #3D3D3D; " +
-                        "-fx-border-radius: 5; " +
-                        "-fx-border-width: 1;");
+        content.setStyle(STYLE_NORMAL);
 
         // Header
         Label titleLabel = new Label(node.getTitle());
@@ -119,5 +118,14 @@ public class NodeView extends Region {
 
     public Node getNode() {
         return node;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+        content.setStyle(selected ? STYLE_SELECTED : STYLE_NORMAL);
+    }
+
+    public boolean isSelected() {
+        return selected;
     }
 }

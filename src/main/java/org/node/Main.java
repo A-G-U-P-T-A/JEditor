@@ -47,14 +47,14 @@ public class Main extends Application {
 
     private void setupCanvasNavigation() {
         canvas.setOnMousePressed(e -> {
-            if (e.getButton() == MouseButton.PRIMARY) {
+            if (e.getButton() == MouseButton.MIDDLE) {
                 lastMousePosition = new Point2D(e.getSceneX(), e.getSceneY());
                 canvas.setCursor(javafx.scene.Cursor.CLOSED_HAND);
             }
         });
 
         canvas.setOnMouseDragged(e -> {
-            if (e.getButton() == MouseButton.PRIMARY && lastMousePosition != null) {
+            if (e.getButton() == MouseButton.MIDDLE && lastMousePosition != null) {
                 double deltaX = e.getSceneX() - lastMousePosition.getX();
                 double deltaY = e.getSceneY() - lastMousePosition.getY();
 
@@ -69,7 +69,7 @@ public class Main extends Application {
         });
 
         canvas.setOnMouseReleased(e -> {
-            if (e.getButton() == MouseButton.PRIMARY) {
+            if (e.getButton() == MouseButton.MIDDLE) {
                 lastMousePosition = null;
                 canvas.setCursor(javafx.scene.Cursor.DEFAULT);
             }
@@ -99,8 +99,7 @@ public class Main extends Application {
                         Constructor<?> constructor = cls.getConstructors()[0];
                         Node node = ClassScanner.createConstructorNode(constructor, new Point2D(event.getX(), event.getY()));
                         NodeView nodeView = new NodeView(node);
-                        nodeViews.add(nodeView);
-                        canvas.getChildren().add(nodeView);
+                        addNodeToCanvas(nodeView);
                     } else {
                         // Create method node
                         Method method = Arrays.stream(cls.getMethods())
@@ -111,8 +110,7 @@ public class Main extends Application {
                         if (method != null) {
                             Node node = ClassScanner.createMethodNode(method, new Point2D(event.getX(), event.getY()));
                             NodeView nodeView = new NodeView(node);
-                            nodeViews.add(nodeView);
-                            canvas.getChildren().add(nodeView);
+                            addNodeToCanvas(nodeView);
                         }
                     }
                     success = true;
@@ -125,22 +123,39 @@ public class Main extends Application {
         });
     }
 
-    private void addNodeToCanvas(Node node) {
-        // Set initial position in the center of the visible canvas
-        if (node.getPosition() == null) {
-            double x = canvas.getWidth() / 2;
-            double y = canvas.getHeight() / 2;
-            node.setPosition(new Point2D(x, y));
-        }
+    private void setupNodeDragging(NodeView nodeView) {
+        final Point2D[] dragDelta = new Point2D[1];
 
-        NodeView nodeView = new NodeView(node);
+        nodeView.setOnMousePressed(e -> {
+            if (e.getButton() == MouseButton.PRIMARY) {
+                dragDelta[0] = new Point2D(nodeView.getLayoutX() - e.getSceneX(), nodeView.getLayoutY() - e.getSceneY());
+                e.consume();
+            }
+        });
+
+        nodeView.setOnMouseDragged(e -> {
+            if (e.getButton() == MouseButton.PRIMARY && dragDelta[0] != null) {
+                double newX = e.getSceneX() + dragDelta[0].getX();
+                double newY = e.getSceneY() + dragDelta[0].getY();
+                
+                nodeView.setLayoutX(newX);
+                nodeView.setLayoutY(newY);
+                e.consume();
+            }
+        });
+
+        nodeView.setOnMouseReleased(e -> {
+            if (e.getButton() == MouseButton.PRIMARY) {
+                dragDelta[0] = null;
+                e.consume();
+            }
+        });
+    }
+
+    private void addNodeToCanvas(NodeView nodeView) {
+        setupNodeDragging(nodeView);
         nodeViews.add(nodeView);
         canvas.getChildren().add(nodeView);
-        
-        // Make node draggable
-        makeDraggable(nodeView);
-
-        // Update node explorer
         nodeExplorer.updateNodeList(nodeViews);
     }
 
@@ -172,6 +187,20 @@ public class Main extends Application {
     }
 
     private void setupInteractions() {
+        // Setup node selection
+        nodeExplorer = new NodeExplorer(nodeView -> {
+            // Deselect all nodes
+            nodeViews.forEach(nv -> nv.setSelected(false));
+            // Select the clicked node
+            nodeView.setSelected(true);
+        });
+
+        // Setup canvas navigation
+        setupCanvasNavigation();
+
+        // Setup canvas drop handling
+        setupCanvasHandlers();
+
         // Pin drag interaction
         canvas.setOnMouseMoved(e -> {
             if (previewConnection != null) {
@@ -190,26 +219,6 @@ public class Main extends Application {
         });
     }
 
-    private void makeDraggable(NodeView nodeView) {
-        final Delta dragDelta = new Delta();
-
-        nodeView.setOnMousePressed(e -> {
-            if (e.getButton() == MouseButton.PRIMARY) {
-                dragDelta.x = nodeView.getLayoutX() - e.getSceneX();
-                dragDelta.y = nodeView.getLayoutY() - e.getSceneY();
-                e.consume();
-            }
-        });
-
-        nodeView.setOnMouseDragged(e -> {
-            if (e.getButton() == MouseButton.PRIMARY) {
-                nodeView.setLayoutX(e.getSceneX() + dragDelta.x);
-                nodeView.setLayoutY(e.getSceneY() + dragDelta.y);
-                e.consume();
-            }
-        });
-    }
-
     private void setupStage(Stage primaryStage) {
         ScrollPane canvasScroll = new ScrollPane(canvas);
         canvasScroll.setPannable(true);
@@ -217,10 +226,40 @@ public class Main extends Application {
         canvasScroll.setFitToHeight(true);
 
         // Create node palette
-        NodePalette palette = new NodePalette(this::addNodeToCanvas);
+        NodePalette palette = new NodePalette();
+        palette.setOnNodeCreated((className, methodName, x, y) -> {
+            try {
+                Class<?> cls = Class.forName(className);
+                if ("Create".equals(methodName)) {
+                    // Create constructor node
+                    Constructor<?> constructor = cls.getConstructors()[0];
+                    Node node = ClassScanner.createConstructorNode(constructor, new Point2D(x, y));
+                    NodeView nodeView = new NodeView(node);
+                    addNodeToCanvas(nodeView);
+                } else {
+                    // Create method node
+                    Method method = Arrays.stream(cls.getMethods())
+                            .filter(m -> m.getName().equals(methodName))
+                            .findFirst()
+                            .orElse(null);
+                    if (method != null) {
+                        Node node = ClassScanner.createMethodNode(method, new Point2D(x, y));
+                        NodeView nodeView = new NodeView(node);
+                        addNodeToCanvas(nodeView);
+                    }
+                }
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        });
 
         // Create node explorer
-        nodeExplorer = new NodeExplorer(this::focusOnNode);
+        nodeExplorer = new NodeExplorer(nodeView -> {
+            // Deselect all nodes
+            nodeViews.forEach(nv -> nv.setSelected(false));
+            // Select the clicked node
+            nodeView.setSelected(true);
+        });
 
         // Create main layout
         HBox root = new HBox();
@@ -233,11 +272,6 @@ public class Main extends Application {
         primaryStage.show();
 
         setupInteractions();
-    }
-
-    // Helper class for drag functionality
-    private static class Delta {
-        double x, y;
     }
 
     public static void main(String[] args) {

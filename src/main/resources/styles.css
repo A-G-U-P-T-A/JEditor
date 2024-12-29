@@ -1,0 +1,66 @@
+.root {
+    -fx-background-color: #1E1E1E;
+}
+
+.scroll-pane {
+    -fx-background: #1E1E1E;
+    -fx-border-color: #3D3D3D;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar:vertical,
+.scroll-bar:horizontal {
+    -fx-background-color: #2D2D2D;
+}
+
+.scroll-bar:vertical .thumb,
+.scroll-bar:horizontal .thumb {
+    -fx-background-color: #4D4D4D;
+}
+
+.tree-view {
+    -fx-background-color: #2D2D2D;
+}
+
+.tree-cell {
+    -fx-text-fill: white;
+    -fx-background-color: transparent;
+}
+
+.tree-cell:selected {
+    -fx-background-color: #3D3D3D;
+}
+
+.list-view {
+    -fx-background-color: #2D2D2D;
+}
+
+.list-cell {
+    -fx-text-fill: white;
+    -fx-background-color: transparent;
+}
+
+.list-cell:selected {
+    -fx-background-color: #3D3D3D;
+}
+
+.text-field {
+    -fx-background-color: #3D3D3D;
+    -fx-text-fill: white;
+}
+
+.button {
+    -fx-background-color: #3D3D3D;
+    -fx-text-fill: white;
+}
+
+.button:hover {
+    -fx-background-color: #4D4D4D;
+}
+
+.label {
+    -fx-text-fill: white;
+}

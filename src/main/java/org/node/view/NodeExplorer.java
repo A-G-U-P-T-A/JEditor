@@ -5,6 +5,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.collections.FXCollections;
+import javafx.scene.paint.Color;
+import javafx.geometry.Insets;
 import java.util.List;
 import java.util.function.Consumer;
 import org.node.model.Node;
@@ -26,72 +28,97 @@ public class NodeExplorer extends VBox {
     private void setupUI() {
         setPrefWidth(250);
         setStyle("-fx-background-color: #2D2D2D;");
+        setPadding(new Insets(10));
+        setSpacing(10);
 
         // Create title
         Label title = new Label("Node Explorer");
-        title.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10;");
+        title.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+
+        // Add search field
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search nodes...");
+        searchField.setStyle("-fx-background-color: #3D3D3D; -fx-text-fill: white; -fx-prompt-text-fill: #808080;");
 
         // Create node list
         nodeList = new ListView<>();
-        nodeList.setPrefHeight(2000); // Make it tall enough
-        nodeList.setStyle("-fx-background-color: #2D2D2D; -fx-control-inner-background: #2D2D2D;");
+        nodeList.setStyle("""
+            -fx-background-color: #2D2D2D;
+            -fx-control-inner-background: #2D2D2D;
+            -fx-border-color: #3D3D3D;
+            -fx-border-width: 1;
+            -fx-padding: 5;
+        """);
         VBox.setVgrow(nodeList, Priority.ALWAYS);
 
         // Setup cell factory for custom rendering
         nodeList.setCellFactory(lv -> new ListCell<NodeView>() {
-            private Button deleteButton;
-            private HBox content;
-
             {
-                deleteButton = new Button("X");
-                deleteButton.setStyle("-fx-background-color: #FF4444; -fx-text-fill: white;");
-                content = new HBox(5);
-                content.setStyle("-fx-padding: 5;");
+                // Set cell background to be transparent
+                setStyle("-fx-background-color: transparent;");
             }
 
             @Override
             protected void updateItem(NodeView nodeView, boolean empty) {
                 super.updateItem(nodeView, empty);
+                
                 if (empty || nodeView == null) {
                     setText(null);
                     setGraphic(null);
+                    setStyle("-fx-background-color: transparent;");
                 } else {
+                    // Create container for the cell content
+                    HBox container = new HBox(10);
+                    container.setPadding(new Insets(5));
+                    container.setStyle("-fx-background-color: #3D3D3D; -fx-background-radius: 3;");
+
                     // Create label for node name
                     Label nameLabel = new Label(nodeView.getNode().getTitle());
                     nameLabel.setStyle("-fx-text-fill: white;");
                     HBox.setHgrow(nameLabel, Priority.ALWAYS);
 
-                    // Setup delete button action
+                    // Create delete button
+                    Button deleteButton = new Button("×");
+                    deleteButton.setStyle("""
+                        -fx-background-color: #FF4444;
+                        -fx-text-fill: white;
+                        -fx-font-size: 14px;
+                        -fx-padding: 2 8;
+                        -fx-background-radius: 3;
+                    """);
+                    
                     deleteButton.setOnAction(e -> {
                         if (onNodeDeleted != null) {
                             onNodeDeleted.accept(nodeView);
                         }
                     });
 
-                    // Add label and delete button to content
-                    content.getChildren().setAll(nameLabel, deleteButton);
-                    setGraphic(content);
-                    setStyle("-fx-background-color: transparent;");
+                    // Add components to container
+                    container.getChildren().addAll(nameLabel, deleteButton);
+                    
+                    // Set the container as the cell's graphic
+                    setGraphic(container);
 
-                    // Setup click handler
-                    setOnMouseClicked(e -> onNodeSelected.accept(nodeView));
+                    // Handle selection
+                    container.setOnMouseClicked(e -> {
+                        if (onNodeSelected != null) {
+                            onNodeSelected.accept(nodeView);
+                            System.out.println("Node selected: " + nodeView.getNode().getTitle());
+                        }
+                    });
                 }
             }
         });
-
-        // Add search field
-        TextField searchField = new TextField();
-        searchField.setPromptText("Search nodes...");
-        searchField.setStyle("-fx-background-color: #3D3D3D; -fx-text-fill: white;");
 
         getChildren().addAll(title, searchField, nodeList);
     }
 
     public void updateNodeList(List<NodeView> nodes) {
-        System.out.println("Updating node list with " + nodes.size() + " nodes");  
+        System.out.println("NodeExplorer: Updating node list with " + nodes.size() + " nodes");
         for (NodeView node : nodes) {
-            System.out.println(" - " + node.getNode().getTitle());  
+            System.out.println("NodeExplorer: - " + node.getNode().getTitle());
         }
         nodeList.setItems(FXCollections.observableArrayList(nodes));
+        nodeList.refresh();
     }
 }

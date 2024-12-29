@@ -1,16 +1,17 @@
 package org.node;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import javafx.scene.input.MouseButton;
 import org.node.model.*;
 import org.node.view.*;
 import java.util.ArrayList;
@@ -157,9 +158,12 @@ public class Main extends Application {
         setupNodeDragging(nodeView);
         nodeViews.add(nodeView);
         canvas.getChildren().add(nodeView);
-        System.out.println("Adding node to canvas: " + nodeView.getNode().getTitle());  // Debug print
-        System.out.println("Current node count: " + nodeViews.size());  // Debug print
-        nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));  // Create new ArrayList to avoid reference issues
+        System.out.println("Adding node to canvas: " + nodeView.getNode().getTitle());
+        System.out.println("Current node count: " + nodeViews.size());
+        Platform.runLater(() -> {
+            System.out.println("Updating NodeExplorer with nodes: " + nodeViews.size());
+            nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+        });
     }
 
     private void focusOnNode(NodeView nodeView) {
@@ -233,12 +237,13 @@ public class Main extends Application {
         palette.setOnNodeCreated((className, methodName, x, y) -> {
             try {
                 Class<?> cls = Class.forName(className);
+                NodeView nodeView = null;
+                
                 if ("Create".equals(methodName)) {
                     // Create constructor node
                     Constructor<?> constructor = cls.getConstructors()[0];
                     Node node = ClassScanner.createConstructorNode(constructor, new Point2D(x, y));
-                    NodeView nodeView = new NodeView(node);
-                    addNodeToCanvas(nodeView);
+                    nodeView = new NodeView(node);
                 } else {
                     // Create method node
                     Method method = Arrays.stream(cls.getMethods())
@@ -247,9 +252,13 @@ public class Main extends Application {
                             .orElse(null);
                     if (method != null) {
                         Node node = ClassScanner.createMethodNode(method, new Point2D(x, y));
-                        NodeView nodeView = new NodeView(node);
-                        addNodeToCanvas(nodeView);
+                        nodeView = new NodeView(node);
                     }
+                }
+
+                if (nodeView != null) {
+                    System.out.println("Created node: " + nodeView.getNode().getTitle());
+                    addNodeToCanvas(nodeView);
                 }
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
@@ -258,6 +267,7 @@ public class Main extends Application {
 
         // Create node explorer
         nodeExplorer = new NodeExplorer(nodeView -> {
+            System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
             // Deselect all nodes
             nodeViews.forEach(nv -> nv.setSelected(false));
             // Select the clicked node
@@ -266,10 +276,12 @@ public class Main extends Application {
 
         // Setup node deletion
         nodeExplorer.setOnNodeDeleted(nodeView -> {
-            System.out.println("Deleting node: " + nodeView.getNode().getTitle());  // Debug print
+            System.out.println("Deleting node: " + nodeView.getNode().getTitle());
             canvas.getChildren().remove(nodeView);
             nodeViews.remove(nodeView);
-            nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+            Platform.runLater(() -> {
+                nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+            });
         });
 
         // Create main layout

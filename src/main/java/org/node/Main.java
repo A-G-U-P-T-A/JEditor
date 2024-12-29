@@ -233,6 +233,8 @@ public class Main extends Application {
     }
 
     private void setupStage(Stage primaryStage) {
+        System.out.println("Initial nodeViews size: " + nodeViews.size());
+
         // Create node explorer first
         nodeExplorer = new NodeExplorer(nodeView -> {
             System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
@@ -254,6 +256,7 @@ public class Main extends Application {
                 System.out.println("Class: " + className);
                 System.out.println("Method: " + methodName);
                 System.out.println("Position: " + x + "," + y);
+                System.out.println("Current nodeViews size: " + nodeViews.size());
                 
                 Class<?> cls = Class.forName(className);
                 Node node;
@@ -273,18 +276,23 @@ public class Main extends Application {
                 nodeView.setLayoutY(y);
                 
                 System.out.println("Created NodeView: " + nodeView.getNode().getTitle());
-                System.out.println("Current nodeViews size: " + nodeViews.size());
                 
-                nodeViews.add(nodeView);
+                // Add to canvas first
                 canvas.getChildren().add(nodeView);
                 setupNodeDragging(nodeView);
                 
+                // Then add to nodeViews list
+                nodeViews.add(nodeView);
                 System.out.println("Added to nodeViews, new size: " + nodeViews.size());
                 
                 // Force update on JavaFX thread
                 Platform.runLater(() -> {
                     System.out.println("\n=== Updating Explorer ===");
                     System.out.println("NodeViews size before update: " + nodeViews.size());
+                    System.out.println("NodeViews contents:");
+                    for (NodeView nv : nodeViews) {
+                        System.out.println("- " + nv.getNode().getTitle());
+                    }
                     List<NodeView> nodesToUpdate = new ArrayList<>(nodeViews);
                     System.out.println("Copied list size: " + nodesToUpdate.size());
                     nodeExplorer.updateNodeList(nodesToUpdate);

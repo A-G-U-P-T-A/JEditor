@@ -12,6 +12,7 @@ public class NodeExplorer extends VBox {
     private VBox nodeContainer;
     private Consumer<NodeView> onNodeSelected;
     private Label counterLabel;
+    private ScrollPane scrollPane;
 
     public NodeExplorer(Consumer<NodeView> onNodeSelected) {
         this.onNodeSelected = onNodeSelected;
@@ -23,8 +24,8 @@ public class NodeExplorer extends VBox {
         setPrefWidth(300);
         setMinWidth(300);
         setMaxWidth(300);
-        setPrefHeight(600);
-        setMinHeight(600);
+        setPrefHeight(800);
+        setMinHeight(800);
         
         setStyle("-fx-background-color: #2D2D2D; -fx-border-color: red; -fx-border-width: 2;");
         setPadding(new Insets(10));
@@ -40,16 +41,38 @@ public class NodeExplorer extends VBox {
 
         // Container for nodes
         nodeContainer = new VBox(5);
-        nodeContainer.setStyle("-fx-background-color: #3D3D3D; -fx-padding: 5;");
+        nodeContainer.setStyle("""
+            -fx-background-color: #3D3D3D;
+            -fx-padding: 10;
+            -fx-border-color: lime;
+            -fx-border-width: 2;
+        """);
+        nodeContainer.setMinHeight(600);
+        nodeContainer.setPrefHeight(600);
         
-        // Wrap in ScrollPane
-        ScrollPane scrollPane = new ScrollPane(nodeContainer);
+        // Wrap in ScrollPane with visible viewport
+        scrollPane = new ScrollPane(nodeContainer);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background: #3D3D3D; -fx-background-color: #3D3D3D;");
-        scrollPane.setPrefHeight(500);
+        scrollPane.setStyle("""
+            -fx-background: #3D3D3D;
+            -fx-background-color: #3D3D3D;
+            -fx-border-color: yellow;
+            -fx-border-width: 2;
+        """);
+        scrollPane.setMinHeight(600);
+        scrollPane.setPrefHeight(600);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
+        // Make viewport visible
+        scrollPane.setViewportBounds(new javafx.geometry.BoundingBox(0, 0, 280, 600));
+        
         getChildren().addAll(header, counterLabel, scrollPane);
+        
+        // Add a test label to verify visibility
+        Label testLabel = new Label("Container Test Label");
+        testLabel.setStyle("-fx-text-fill: lime; -fx-font-size: 14px;");
+        nodeContainer.getChildren().add(testLabel);
     }
 
     public void updateNodeList(List<NodeView> nodes) {
@@ -75,6 +98,8 @@ public class NodeExplorer extends VBox {
                 -fx-border-color: #666666;
                 -fx-border-radius: 4;
                 -fx-border-width: 1;
+                -fx-min-height: 30;
+                -fx-pref-height: 30;
             """);
             nodeLabel.setMaxWidth(Double.MAX_VALUE);
             
@@ -101,6 +126,7 @@ public class NodeExplorer extends VBox {
         
         // Force layout update
         nodeContainer.requestLayout();
+        scrollPane.requestLayout();
         requestLayout();
     }
 }

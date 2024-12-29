@@ -12,6 +12,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.node.model.*;
 import org.node.view.*;
@@ -258,12 +259,27 @@ public class Main extends Application {
     private void setupStage(Stage primaryStage) {
         System.out.println("Initial nodeViews size: " + nodeViews.size());
 
-        // Create node explorer first
+        // Create navigation bar
+        NavigationBar navigationBar = new NavigationBar(primaryStage);
+        navigationBar.setOnNewProject(() -> {
+            // Clear current project
+            nodeViews.clear();
+            canvas.getChildren().clear();
+            connectionViews.clear();
+            if (nodeExplorer != null) {
+                nodeExplorer.updateNodeList(new ArrayList<>());
+            }
+        });
+        navigationBar.setOnExit(() -> {
+            primaryStage.close();
+        });
+
+        // Create node explorer
         nodeExplorer = new NodeExplorer(nodeView -> {
             System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
             nodeViews.forEach(nv -> nv.setSelected(false));
             nodeView.setSelected(true);
-            focusOnNode(nodeView); // Focus on the selected node
+            focusOnNode(nodeView);
         });
 
         ScrollPane canvasScroll = new ScrollPane(canvas);
@@ -275,10 +291,16 @@ public class Main extends Application {
         // Create node palette
         NodePalette palette = new NodePalette();
         
-        // Create the root layout
-        HBox root = new HBox(10);
+        // Create the main content layout
+        HBox mainContent = new HBox(10);
+        mainContent.setStyle("-fx-background-color: #1E1E1E;");
+        mainContent.getChildren().addAll(palette, canvasScroll, nodeExplorer);
+
+        // Create root layout with navigation bar
+        VBox root = new VBox();
         root.setStyle("-fx-background-color: #1E1E1E;");
-        root.getChildren().addAll(palette, canvasScroll, nodeExplorer);
+        root.getChildren().addAll(navigationBar, mainContent);
+        VBox.setVgrow(mainContent, Priority.ALWAYS);
 
         Scene scene = new Scene(root, 1200, 800);
         scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());

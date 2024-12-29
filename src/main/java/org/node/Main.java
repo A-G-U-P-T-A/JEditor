@@ -24,7 +24,7 @@ import javafx.collections.FXCollections;
 
 public class Main extends Application {
     private final Pane canvas;
-    private final List<NodeView> nodeViews;
+    private final List<NodeView> nodeViews = new ArrayList<>(); // Initialize here instead
     private List<ConnectionView> connectionViews;
     private PinView dragSourcePin;
     private ConnectionView previewConnection;
@@ -34,7 +34,11 @@ public class Main extends Application {
     public Main() {
         canvas = new Pane();
         canvas.setStyle("-fx-background-color: #1E1E1E;");
-        nodeViews = FXCollections.observableArrayList();
+        connectionViews = new ArrayList<>();
+        dragSourcePin = null;
+        previewConnection = null;
+        lastMousePosition = null;
+        nodeExplorer = null;
     }
 
     @Override
@@ -234,6 +238,7 @@ public class Main extends Application {
             System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
             nodeViews.forEach(nv -> nv.setSelected(false));
             nodeView.setSelected(true);
+            nodeView.toFront(); // Bring selected node to front
         });
 
         ScrollPane canvasScroll = new ScrollPane(canvas);
@@ -245,7 +250,11 @@ public class Main extends Application {
         NodePalette palette = new NodePalette();
         palette.setOnNodeCreated((className, methodName, x, y) -> {
             try {
-                System.out.println("Creating node: " + className + "." + methodName);
+                System.out.println("\n=== Creating New Node ===");
+                System.out.println("Class: " + className);
+                System.out.println("Method: " + methodName);
+                System.out.println("Position: " + x + "," + y);
+                
                 Class<?> cls = Class.forName(className);
                 Node node;
                 if ("Create".equals(methodName)) {
@@ -260,13 +269,27 @@ public class Main extends Application {
                 }
 
                 NodeView nodeView = new NodeView(node);
+                nodeView.setLayoutX(x);
+                nodeView.setLayoutY(y);
+                
+                System.out.println("Created NodeView: " + nodeView.getNode().getTitle());
+                System.out.println("Current nodeViews size: " + nodeViews.size());
+                
                 nodeViews.add(nodeView);
                 canvas.getChildren().add(nodeView);
                 setupNodeDragging(nodeView);
                 
-                System.out.println("Node created, total nodes: " + nodeViews.size());
-                System.out.println("Updating explorer...");
-                nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+                System.out.println("Added to nodeViews, new size: " + nodeViews.size());
+                
+                // Force update on JavaFX thread
+                Platform.runLater(() -> {
+                    System.out.println("\n=== Updating Explorer ===");
+                    System.out.println("NodeViews size before update: " + nodeViews.size());
+                    List<NodeView> nodesToUpdate = new ArrayList<>(nodeViews);
+                    System.out.println("Copied list size: " + nodesToUpdate.size());
+                    nodeExplorer.updateNodeList(nodesToUpdate);
+                    System.out.println("=== Update Complete ===\n");
+                });
                 
             } catch (Exception e) {
                 System.err.println("Error creating node: " + e.getMessage());
@@ -285,6 +308,7 @@ public class Main extends Application {
         HBox.setHgrow(canvasScroll, Priority.ALWAYS);
 
         Scene scene = new Scene(root, 1200, 800);
+        scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
         primaryStage.setTitle("Blueprint Node Editor");
         primaryStage.setScene(scene);
         primaryStage.show();

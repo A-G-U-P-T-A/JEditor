@@ -11,6 +11,7 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import org.node.model.*;
 import org.node.view.*;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import javafx.collections.FXCollections;
 
 public class Main extends Application {
     private final Pane canvas;
@@ -32,7 +34,7 @@ public class Main extends Application {
     public Main() {
         canvas = new Pane();
         canvas.setStyle("-fx-background-color: #1E1E1E;");
-        nodeViews = new ArrayList<>();
+        nodeViews = FXCollections.observableArrayList();
     }
 
     @Override
@@ -227,6 +229,13 @@ public class Main extends Application {
     }
 
     private void setupStage(Stage primaryStage) {
+        // Create node explorer first
+        nodeExplorer = new NodeExplorer(nodeView -> {
+            System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
+            nodeViews.forEach(nv -> nv.setSelected(false));
+            nodeView.setSelected(true);
+        });
+
         ScrollPane canvasScroll = new ScrollPane(canvas);
         canvasScroll.setPannable(true);
         canvasScroll.setFitToWidth(true);
@@ -236,58 +245,44 @@ public class Main extends Application {
         NodePalette palette = new NodePalette();
         palette.setOnNodeCreated((className, methodName, x, y) -> {
             try {
+                System.out.println("Creating node: " + className + "." + methodName);
                 Class<?> cls = Class.forName(className);
-                NodeView nodeView = null;
-                
+                Node node;
                 if ("Create".equals(methodName)) {
-                    // Create constructor node
                     Constructor<?> constructor = cls.getConstructors()[0];
-                    Node node = ClassScanner.createConstructorNode(constructor, new Point2D(x, y));
-                    nodeView = new NodeView(node);
+                    node = ClassScanner.createConstructorNode(constructor, new Point2D(x, y));
                 } else {
-                    // Create method node
                     Method method = Arrays.stream(cls.getMethods())
                             .filter(m -> m.getName().equals(methodName))
                             .findFirst()
-                            .orElse(null);
-                    if (method != null) {
-                        Node node = ClassScanner.createMethodNode(method, new Point2D(x, y));
-                        nodeView = new NodeView(node);
-                    }
+                            .orElseThrow();
+                    node = ClassScanner.createMethodNode(method, new Point2D(x, y));
                 }
 
-                if (nodeView != null) {
-                    System.out.println("Created node: " + nodeView.getNode().getTitle());
-                    addNodeToCanvas(nodeView);
-                }
-            } catch (ClassNotFoundException e) {
+                NodeView nodeView = new NodeView(node);
+                nodeViews.add(nodeView);
+                canvas.getChildren().add(nodeView);
+                setupNodeDragging(nodeView);
+                
+                System.out.println("Node created, total nodes: " + nodeViews.size());
+                System.out.println("Updating explorer...");
+                nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+                
+            } catch (Exception e) {
+                System.err.println("Error creating node: " + e.getMessage());
                 e.printStackTrace();
             }
         });
 
-        // Create node explorer
-        nodeExplorer = new NodeExplorer(nodeView -> {
-            System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
-            // Deselect all nodes
-            nodeViews.forEach(nv -> nv.setSelected(false));
-            // Select the clicked node
-            nodeView.setSelected(true);
-        });
-
-        // Setup node deletion
-        nodeExplorer.setOnNodeDeleted(nodeView -> {
-            System.out.println("Deleting node: " + nodeView.getNode().getTitle());
-            canvas.getChildren().remove(nodeView);
-            nodeViews.remove(nodeView);
-            Platform.runLater(() -> {
-                nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
-            });
-        });
-
-        // Create main layout
-        HBox root = new HBox();
+        // Create main layout with debug borders
+        HBox root = new HBox(10);
+        root.setStyle("-fx-background-color: #1E1E1E;");
+        
+        palette.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
+        canvasScroll.setStyle("-fx-border-color: green; -fx-border-width: 2;");
+        
         root.getChildren().addAll(palette, canvasScroll, nodeExplorer);
-        HBox.setHgrow(canvasScroll, javafx.scene.layout.Priority.ALWAYS);
+        HBox.setHgrow(canvasScroll, Priority.ALWAYS);
 
         Scene scene = new Scene(root, 1200, 800);
         primaryStage.setTitle("Blueprint Node Editor");

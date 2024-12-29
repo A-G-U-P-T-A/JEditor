@@ -21,6 +21,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import javafx.collections.FXCollections;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 
 public class Main extends Application {
     private final Pane canvas;
@@ -285,8 +287,9 @@ public class Main extends Application {
                 nodeViews.add(nodeView);
                 System.out.println("Added to nodeViews, new size: " + nodeViews.size());
                 
-                // Force update on JavaFX thread
-                Platform.runLater(() -> {
+                // Force update on JavaFX thread after a short delay
+                PauseTransition delay = new PauseTransition(Duration.millis(100));
+                delay.setOnFinished(e -> {
                     System.out.println("\n=== Updating Explorer ===");
                     System.out.println("NodeViews size before update: " + nodeViews.size());
                     System.out.println("NodeViews contents:");
@@ -298,6 +301,7 @@ public class Main extends Application {
                     nodeExplorer.updateNodeList(nodesToUpdate);
                     System.out.println("=== Update Complete ===\n");
                 });
+                delay.play();
                 
             } catch (Exception e) {
                 System.err.println("Error creating node: " + e.getMessage());

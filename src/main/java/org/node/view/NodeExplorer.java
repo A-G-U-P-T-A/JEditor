@@ -4,6 +4,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.collections.FXCollections;
 import java.util.List;
 import java.util.function.Consumer;
 import org.node.model.Node;
@@ -11,10 +12,15 @@ import org.node.model.Node;
 public class NodeExplorer extends VBox {
     private ListView<NodeView> nodeList;
     private Consumer<NodeView> onNodeSelected;
+    private Consumer<NodeView> onNodeDeleted;
 
     public NodeExplorer(Consumer<NodeView> onNodeSelected) {
         this.onNodeSelected = onNodeSelected;
         setupUI();
+    }
+
+    public void setOnNodeDeleted(Consumer<NodeView> onNodeDeleted) {
+        this.onNodeDeleted = onNodeDeleted;
     }
 
     private void setupUI() {
@@ -27,7 +33,8 @@ public class NodeExplorer extends VBox {
 
         // Create node list
         nodeList = new ListView<>();
-        nodeList.setStyle("-fx-background-color: #2D2D2D;");
+        nodeList.setPrefHeight(2000); // Make it tall enough
+        nodeList.setStyle("-fx-background-color: #2D2D2D; -fx-control-inner-background: #2D2D2D;");
         VBox.setVgrow(nodeList, Priority.ALWAYS);
 
         // Setup cell factory for custom rendering
@@ -56,8 +63,9 @@ public class NodeExplorer extends VBox {
 
                     // Setup delete button action
                     deleteButton.setOnAction(e -> {
-                        nodeView.getParent().getChildrenUnmodifiable().remove(nodeView);
-                        updateNodeList(getListView().getItems().filtered(nv -> nv != nodeView));
+                        if (onNodeDeleted != null) {
+                            onNodeDeleted.accept(nodeView);
+                        }
                     });
 
                     // Add label and delete button to content
@@ -71,10 +79,19 @@ public class NodeExplorer extends VBox {
             }
         });
 
-        getChildren().addAll(title, nodeList);
+        // Add search field
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search nodes...");
+        searchField.setStyle("-fx-background-color: #3D3D3D; -fx-text-fill: white;");
+
+        getChildren().addAll(title, searchField, nodeList);
     }
 
     public void updateNodeList(List<NodeView> nodes) {
-        nodeList.getItems().setAll(nodes);
+        System.out.println("Updating node list with " + nodes.size() + " nodes");  
+        for (NodeView node : nodes) {
+            System.out.println(" - " + node.getNode().getTitle());  
+        }
+        nodeList.setItems(FXCollections.observableArrayList(nodes));
     }
 }

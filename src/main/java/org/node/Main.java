@@ -20,13 +20,19 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 
 public class Main extends Application {
-    private Pane canvas;
-    private List<NodeView> nodeViews;
+    private final Pane canvas;
+    private final List<NodeView> nodeViews;
     private List<ConnectionView> connectionViews;
     private PinView dragSourcePin;
     private ConnectionView previewConnection;
     private Point2D lastMousePosition;
     private NodeExplorer nodeExplorer;
+
+    public Main() {
+        canvas = new Pane();
+        canvas.setStyle("-fx-background-color: #1E1E1E;");
+        nodeViews = new ArrayList<>();
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -35,11 +41,6 @@ public class Main extends Application {
     }
 
     private void initializeCanvas() {
-        canvas = new Pane();
-        canvas.setStyle("-fx-background-color: #1E1E1E;");
-        nodeViews = new ArrayList<>();
-        connectionViews = new ArrayList<>();
-
         // Setup canvas navigation
         setupCanvasNavigation();
         setupCanvasHandlers();
@@ -156,7 +157,9 @@ public class Main extends Application {
         setupNodeDragging(nodeView);
         nodeViews.add(nodeView);
         canvas.getChildren().add(nodeView);
-        nodeExplorer.updateNodeList(nodeViews);
+        System.out.println("Adding node to canvas: " + nodeView.getNode().getTitle());  // Debug print
+        System.out.println("Current node count: " + nodeViews.size());  // Debug print
+        nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));  // Create new ArrayList to avoid reference issues
     }
 
     private void focusOnNode(NodeView nodeView) {
@@ -259,6 +262,14 @@ public class Main extends Application {
             nodeViews.forEach(nv -> nv.setSelected(false));
             // Select the clicked node
             nodeView.setSelected(true);
+        });
+
+        // Setup node deletion
+        nodeExplorer.setOnNodeDeleted(nodeView -> {
+            System.out.println("Deleting node: " + nodeView.getNode().getTitle());  // Debug print
+            canvas.getChildren().remove(nodeView);
+            nodeViews.remove(nodeView);
+            nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
         });
 
         // Create main layout

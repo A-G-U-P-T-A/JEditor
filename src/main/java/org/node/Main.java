@@ -5,6 +5,11 @@ import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.stage.DirectoryChooser;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
@@ -24,6 +29,8 @@ import java.util.Arrays;
 import javafx.collections.FXCollections;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
+import java.io.File;
+import java.io.IOException;
 
 public class Main extends Application {
     private final Pane canvas;
@@ -259,57 +266,44 @@ public class Main extends Application {
     private void setupStage(Stage primaryStage) {
         System.out.println("Initial nodeViews size: " + nodeViews.size());
 
-        // Create navigation bar
-        NavigationBar navigationBar = new NavigationBar(primaryStage);
-        navigationBar.setOnNewProject(() -> {
-            // Clear current project
-            nodeViews.clear();
-            canvas.getChildren().clear();
-            connectionViews.clear();
-            if (nodeExplorer != null) {
-                nodeExplorer.updateNodeList(new ArrayList<>());
+        // Create menu bar
+        MenuBar menuBar = new MenuBar();
+        Menu fileMenu = new Menu("File");
+        
+        MenuItem newProject = new MenuItem("New Project");
+        newProject.setOnAction(e -> {
+            DirectoryChooser directoryChooser = new DirectoryChooser();
+            directoryChooser.setTitle("Select Project Directory");
+            File selectedDirectory = directoryChooser.showDialog(primaryStage);
+            
+            if (selectedDirectory != null) {
+                try {
+                    Project project = Project.createNew(selectedDirectory.getAbsolutePath());
+                    System.out.println("Created new project at: " + project.getRootPath());
+                    // TODO: Update UI with project info
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error");
+                    alert.setHeaderText("Project Creation Failed");
+                    alert.setContentText("Failed to create project: " + ex.getMessage());
+                    alert.showAndWait();
+                }
             }
         });
-        navigationBar.setOnExit(() -> {
-            primaryStage.close();
-        });
-
-        // Create node explorer
-        nodeExplorer = new NodeExplorer(nodeView -> {
-            System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
-            nodeViews.forEach(nv -> nv.setSelected(false));
-            nodeView.setSelected(true);
-            focusOnNode(nodeView);
-        });
-
-        ScrollPane canvasScroll = new ScrollPane(canvas);
-        canvasScroll.setPannable(true);
-        canvasScroll.setFitToWidth(true);
-        canvasScroll.setFitToHeight(true);
-        HBox.setHgrow(canvasScroll, Priority.ALWAYS);
-
-        // Create node palette
-        NodePalette palette = new NodePalette();
         
-        // Create the main content layout
-        HBox mainContent = new HBox(10);
+        MenuItem openProject = new MenuItem("Open Project");
+        MenuItem saveProject = new MenuItem("Save Project");
+        
+        fileMenu.getItems().addAll(newProject, openProject, saveProject);
+        menuBar.getMenus().add(fileMenu);
+
+        // Create main content area
+        HBox mainContent = new HBox(10);  
         mainContent.setStyle("-fx-background-color: #1E1E1E;");
-        mainContent.getChildren().addAll(palette, canvasScroll, nodeExplorer);
-
-        // Create root layout with navigation bar
-        VBox root = new VBox();
-        root.setStyle("-fx-background-color: #1E1E1E;");
-        root.getChildren().addAll(navigationBar, mainContent);
-        VBox.setVgrow(mainContent, Priority.ALWAYS);
-
-        Scene scene = new Scene(root, 1200, 800);
-        scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
-
-        primaryStage.setTitle("Blueprint Node Editor");
-        primaryStage.setScene(scene);
-        primaryStage.show();
-
-        // Set up node creation callback
+        
+        // Create node palette for left panel
+        NodePalette palette = new NodePalette();
         palette.setOnNodeCreated((className, methodName, x, y) -> {
             try {
                 System.out.println("\n=== Creating New Node ===");
@@ -340,6 +334,31 @@ public class Main extends Application {
                 e.printStackTrace();
             }
         });
+        
+        // Add canvas to a scroll pane
+        ScrollPane canvasScroll = new ScrollPane(canvas);
+        canvasScroll.setFitToWidth(true);
+        canvasScroll.setFitToHeight(true);
+        HBox.setHgrow(canvasScroll, Priority.ALWAYS);
+        
+        // Create node explorer
+        nodeExplorer = new NodeExplorer(this::focusOnNode);
+        nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+        
+        mainContent.getChildren().addAll(palette, canvasScroll, nodeExplorer);
+
+        // Create root layout
+        VBox root = new VBox();
+        root.setStyle("-fx-background-color: #1E1E1E;");
+        root.getChildren().addAll(menuBar, mainContent);
+        VBox.setVgrow(mainContent, Priority.ALWAYS);
+
+        Scene scene = new Scene(root, 1200, 800);
+        scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
+
+        primaryStage.setTitle("Blueprint Node Editor");
+        primaryStage.setScene(scene);
+        primaryStage.show();
 
         setupInteractions();
     }

@@ -163,14 +163,35 @@ public class Main extends Application {
     }
 
     private void addNodeToCanvas(NodeView nodeView) {
+        // Setup node interaction
         setupNodeDragging(nodeView);
+        
+        // Add to canvas and list
         nodeViews.add(nodeView);
         canvas.getChildren().add(nodeView);
-        System.out.println("Adding node to canvas: " + nodeView.getNode().getTitle());
-        System.out.println("Current node count: " + nodeViews.size());
-        Platform.runLater(() -> {
-            System.out.println("Updating NodeExplorer with nodes: " + nodeViews.size());
-            nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+        
+        // Update explorer immediately
+        if (nodeExplorer != null) {
+            Platform.runLater(() -> {
+                List<NodeView> currentNodes = new ArrayList<>(nodeViews);
+                nodeExplorer.updateNodeList(currentNodes);
+            });
+        }
+        
+        // Add selection handling
+        nodeView.setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.PRIMARY) {
+                // Handle multi-selection with CTRL key
+                if (!e.isControlDown()) {
+                    nodeViews.forEach(nv -> nv.setSelected(false));
+                }
+                nodeView.setSelected(!nodeView.isSelected());
+                
+                // Update explorer to reflect selection
+                if (nodeExplorer != null) {
+                    nodeExplorer.updateNodeList(new ArrayList<>(nodeViews));
+                }
+            }
         });
     }
 
@@ -242,23 +263,37 @@ public class Main extends Application {
             System.out.println("Node selected in explorer: " + nodeView.getNode().getTitle());
             nodeViews.forEach(nv -> nv.setSelected(false));
             nodeView.setSelected(true);
-            nodeView.toFront(); // Bring selected node to front
+            focusOnNode(nodeView); // Focus on the selected node
         });
 
         ScrollPane canvasScroll = new ScrollPane(canvas);
         canvasScroll.setPannable(true);
         canvasScroll.setFitToWidth(true);
         canvasScroll.setFitToHeight(true);
+        HBox.setHgrow(canvasScroll, Priority.ALWAYS);
 
         // Create node palette
         NodePalette palette = new NodePalette();
+        
+        // Create the root layout
+        HBox root = new HBox(10);
+        root.setStyle("-fx-background-color: #1E1E1E;");
+        root.getChildren().addAll(palette, canvasScroll, nodeExplorer);
+
+        Scene scene = new Scene(root, 1200, 800);
+        scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
+
+        primaryStage.setTitle("Blueprint Node Editor");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+
+        // Set up node creation callback
         palette.setOnNodeCreated((className, methodName, x, y) -> {
             try {
                 System.out.println("\n=== Creating New Node ===");
                 System.out.println("Class: " + className);
                 System.out.println("Method: " + methodName);
                 System.out.println("Position: " + x + "," + y);
-                System.out.println("Current nodeViews size: " + nodeViews.size());
                 
                 Class<?> cls = Class.forName(className);
                 Node node;
@@ -277,53 +312,12 @@ public class Main extends Application {
                 nodeView.setLayoutX(x);
                 nodeView.setLayoutY(y);
                 
-                System.out.println("Created NodeView: " + nodeView.getNode().getTitle());
-                
-                // Add to canvas first
-                canvas.getChildren().add(nodeView);
-                setupNodeDragging(nodeView);
-                
-                // Then add to nodeViews list
-                nodeViews.add(nodeView);
-                System.out.println("Added to nodeViews, new size: " + nodeViews.size());
-                
-                // Force update on JavaFX thread after a short delay
-                PauseTransition delay = new PauseTransition(Duration.millis(100));
-                delay.setOnFinished(e -> {
-                    System.out.println("\n=== Updating Explorer ===");
-                    System.out.println("NodeViews size before update: " + nodeViews.size());
-                    System.out.println("NodeViews contents:");
-                    for (NodeView nv : nodeViews) {
-                        System.out.println("- " + nv.getNode().getTitle());
-                    }
-                    List<NodeView> nodesToUpdate = new ArrayList<>(nodeViews);
-                    System.out.println("Copied list size: " + nodesToUpdate.size());
-                    nodeExplorer.updateNodeList(nodesToUpdate);
-                    System.out.println("=== Update Complete ===\n");
-                });
-                delay.play();
+                addNodeToCanvas(nodeView);
                 
             } catch (Exception e) {
-                System.err.println("Error creating node: " + e.getMessage());
                 e.printStackTrace();
             }
         });
-
-        // Create main layout with debug borders
-        HBox root = new HBox(10);
-        root.setStyle("-fx-background-color: #1E1E1E;");
-        
-        palette.setStyle("-fx-border-color: blue; -fx-border-width: 2;");
-        canvasScroll.setStyle("-fx-border-color: green; -fx-border-width: 2;");
-        
-        root.getChildren().addAll(palette, canvasScroll, nodeExplorer);
-        HBox.setHgrow(canvasScroll, Priority.ALWAYS);
-
-        Scene scene = new Scene(root, 1200, 800);
-        scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
-        primaryStage.setTitle("Blueprint Node Editor");
-        primaryStage.setScene(scene);
-        primaryStage.show();
 
         setupInteractions();
     }
